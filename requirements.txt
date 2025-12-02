@@ -1,0 +1,6 @@
+torch
+torchvision
+pdfplumber
+easyocr
+numpy
+Pillow

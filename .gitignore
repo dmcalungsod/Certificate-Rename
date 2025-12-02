@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+env/
+.env
+.venv/
+
+# Distribution / Packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+debug_ocr.txt
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# EasyOCR / PyTorch
+.EasyOCR/
+model/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (Optional - uncomment if you want to track PDFs)
+# It is generally recommended to ignore data files in a script repository
+*.pdf
