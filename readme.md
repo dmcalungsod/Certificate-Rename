@@ -4,27 +4,42 @@ This tool automates the process of renaming scanned PDF certificates by extracti
 
 ## Features
 
+* **Modern GUI:** A user-friendly PySide6 graphical interface with drag-and-drop support, dark/light themes, and real-time progress tracking.
 * **OCR-Powered Extraction:** Uses `easyocr` to read text from scanned PDF images.
 * **Smart Name Detection:** Locates names based on context phrases like "presented to" or "awarded to".
 * **Advanced Formatting:** Automatically reformats names to `Surname, Firstname Middle Suffix` (e.g., "Alcarde, David J. Jr.").
 * **Suffix Handling:** Correctly identifies and places suffixes like Jr., Sr., III, etc.
 * **Batch Processing:** Processes all PDF files in a specified folder.
-* **GPU Acceleration:** Utilizes CUDA (if available) for faster OCR processing, optimized for low-VRAM GPUs (single worker).
+* **GPU Acceleration:** Utilizes CUDA (if available) for faster OCR processing, optimized for low-VRAM GPUs.
 * **Debug Logging:** Generates a `debug_ocr.txt` file containing the raw OCR output for verification.
 
 ## Prerequisites
 
 * **Python 3.8+**
+* Install dependencies via `pip install -r requirements.txt`
 
-### Option 2: Command Line
+## Usage
+
+### Option 1: Graphical User Interface (GUI) - Recommended
+
+Open a terminal/command prompt in the script's directory and run:
+
+```bash
+python gui_app.py
+```
+
+1. **Drag and Drop:** Drag your folder containing certificates onto the drop zone, or click "Browse Folder".
+2. **Scan:** Click "Scan Names" to perform a dry-run OCR extraction. You can review the extracted names in the table before any files are changed.
+3. **Rename:** Once satisfied, select the files you want to rename and click "Rename Selected".
+4. **Settings:** Use the ⚙ icon to adjust the number of worker threads or toggle CPU/GPU execution.
+
+### Option 2: Command Line Interface (CLI)
 
 Open a terminal/command prompt in the script's directory and run:
 
 ```bash
 python Auto_RenameScans.py
 ```
-
-### Instructions
 
 1. When prompted, enter the full path to the folder containing your PDF certificates.
 2. Press **Enter** to use the current directory.
@@ -53,4 +68,8 @@ python Auto_RenameScans.py
 
 ## Author
 
-DMC
+Diffon M. Calungsod
+
+## Attributions
+
+The application icon (`favicon.ico`) was downloaded from [Magnific](https://magnific.com/) stock images.

@@ -113,83 +113,146 @@ def extract_name_with_ocr(pdf_path):
                     f.write(text + "\n")
 
             targets = [
-                "this certificate is presented to",
-                "this certificate is awarded to",
-                "is presented to",
-                "is awarded to",
-                "presented to",
-                "awarded to",
-                "to"
+                r"certificate is presented to",
+                r"certificate is awarded to",
+                r"is hereby awarded to",
+                r"is hereby granted to",
+                r"this is to certify that",
+                r"this certifies that",
+                r"certifies that",
+                r"certify that",
+                r"is presented to",
+                r"is awarded to",
+                r"presented to",
+                r"awarded to",
+                r"granted to",
+                r"awards this",
+                r"certi[fp]icate of participation",
+                r"certi[fp]icate of completion",
+                r"certi[fp]icate of attendance",
+                r"certi[fp]icate of appreciation"
             ]
-            # Sort by length descending to match longest phrase first
-            targets.sort(key=len, reverse=True)
             
+            reverse_targets = [
+                r"has successfully completed",
+                r"has completed",
+                r"for participating",
+                r"for attending",
+                r"for completing",
+                r"for active",
+                r"for his/her"
+            ]
+
             name = None
 
+            # 1. Try Forward Targets
             for i, (_, text) in enumerate(lines):
                 text_lower = text.lower()
-                matched_target = next((t for t in targets if t in text_lower), None)
+                matched_target = None
+                for t in targets:
+                    match = re.search(t, text_lower)
+                    if match:
+                        matched_target = match.group(0)
+                        break
                 
                 if matched_target:
-                    # Check if name is on the same line
                     start_index = text_lower.find(matched_target) + len(matched_target)
                     remainder = text[start_index:].strip()
                     
                     next_line_idx = i + 1
                     
-                    # If remainder has substantial content, use it
-                    if len(re.sub(r'[^\w]', '', remainder)) > 1:
+                    if len(re.sub(r'[^\w]', '', remainder)) > 3:
                         name = remainder
-                    elif i + 1 < len(lines):
-                        name = lines[i + 1][1].strip()
-                        next_line_idx = i + 2
                     else:
-                        break
+                        # Look ahead up to 4 lines for a valid name
+                        for j in range(1, 7):
+                            if i + j < len(lines):
+                                candidate = lines[i + j][1].strip()
+                                # Skip noise
+                                if len(re.sub(r'[^a-zA-Z]', '', candidate)) < 4:
+                                    continue
+                                if "@" in candidate or (candidate.isupper() and len(candidate.split()) == 1):
+                                    continue
+                                if re.search(r'(date|signature|director|president)', candidate, re.IGNORECASE):
+                                    continue
+                                # Skip if candidate is itself a target/keyword phrase
+                                cand_lower = candidate.lower()
+                                if any(re.search(t, cand_lower) for t in targets) or any(re.search(rt, cand_lower) for rt in reverse_targets):
+                                    continue
+                                
+                                name = candidate
+                                next_line_idx = i + j + 1
+                                break
+                        if not name:
+                            break
 
-                    # FIX 1: If the "name" is just "This certificate is" (OCR split issue), skip it and take next line
+                    # FIX: If "name" is just a leftover fragment, skip it
                     if name and "certificate" in name.lower() and "is" in name.lower():
                         if next_line_idx < len(lines):
                             name = lines[next_line_idx][1].strip()
                             next_line_idx += 1
                     
-                    # 1. Handle "Jr.," "Sr.," etc. appearing as the START of the name
+                    # Handle "Jr.," "Sr.," etc.
                     if name and re.match(r'^(jr|sr|ii|iii|iv|v|vi|mr|ms|mrs|dr|engr|atty|hon)\.?[\.,]?$', name, re.IGNORECASE):
                         if next_line_idx < len(lines):
                             name = f"{name} {lines[next_line_idx][1].strip()}"
                             next_line_idx += 1
 
-                    # 2. Handle multi-line names (e.g. "David J." + "Jr." + "Alcarde")
-                    # Loop to check subsequent lines for suffixes or name continuations
+                    # Handle multi-line names
                     while next_line_idx < len(lines):
                         next_text = lines[next_line_idx][1].strip()
-                        
-                        # Check for suffix on the next line (Jr, Sr, etc.)
                         if re.match(r'^(jr|sr|ii|iii|iv|v|vi)\.?[\.,]?$', next_text, re.IGNORECASE):
                             name = f"{name} {next_text}"
                             next_line_idx += 1
-                            continue # Check the line AFTER the suffix too (for "Alcarde")
-                        
-                        # Check for name continuation (starts with Capital, no keywords)
-                        elif (next_text and next_text[0].isupper() and 
-                              not any(k in next_text.lower() for k in ["webinar", "held", "participation", "given", "signed", "date", "theme"])):
-                             
-                             # Heuristic: if current name is short (<15 chars) or ends in ".", append next line
-                             # OR if we just appended a suffix (like Jr.), we almost certainly want the next part
+                            continue
+                        elif (next_text and next_text[0].isupper() and
+                              len(re.sub(r'[^a-zA-Z]', '', next_text)) >= 2 and
+                              not any(k in next_text.lower() for k in ["webinar", "held", "participation", "given", "signed", "date", "theme", "attending", "completing"]) and
+                              not re.search(r'\bfor\b', next_text, re.IGNORECASE)):
                              if len(name) < 15 or name.endswith(".") or re.search(r'(jr|sr|ii|iii|iv|v|vi)\.?[\.,]?$', name, re.IGNORECASE):
                                  name = f"{name} {next_text}"
                                  next_line_idx += 1
                                  continue
-                        
-                        # If no match, stop looking
                         break
-                    
                     break
 
+            # 2. Try Reverse Targets (if forward failed)
             if not name:
-                # fallback to first valid OCR line
+                for i, (_, text) in enumerate(lines):
+                    text_lower = text.lower()
+                    if any(re.search(rt, text_lower) for rt in reverse_targets):
+                        # Look back up to 6 lines
+                        for j in range(1, 7):
+                            if i - j >= 0:
+                                candidate = lines[i - j][1].strip()
+                                if len(re.sub(r'[^a-zA-Z]', '', candidate)) < 4:
+                                    continue
+                                if candidate.isupper() and len(candidate.split()) == 1:
+                                    continue
+                                # Skip dates, titles, and boilerplate
+                                if re.search(r'(date|signature|director|president|certificate|global|amanda|brophy|\d{4})', candidate, re.IGNORECASE):
+                                    continue
+                                cand_lower = candidate.lower()
+                                if any(re.search(t, cand_lower) for t in targets) or any(re.search(rt, cand_lower) for rt in reverse_targets):
+                                    continue
+                                name = candidate
+                                break
+                        if name:
+                            break
+
+            # 3. Fallback to first valid OCR line (skip generic words)
+            if not name:
                 for _, text in lines:
-                    if any(c.isalpha() for c in text):
-                        name = text.strip()
+                    candidate = text.strip()
+                    cand_lower = candidate.lower()
+                    if any(c.isalpha() for c in candidate):
+                        if cand_lower in ["certificate", "of", "participation", "completion", "attendance", "appreciation", "course", "professional", "to", "t0"]:
+                            continue
+                        if len(re.sub(r'[^\w\s]', '', candidate)) < 4:
+                            continue
+                        if any(re.search(t, cand_lower) for t in targets) or any(re.search(rt, cand_lower) for rt in reverse_targets):
+                            continue
+                        name = candidate
                         break
 
             if not name:
